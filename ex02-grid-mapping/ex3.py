@@ -15,9 +15,9 @@ def init_gridmap(size, res):
 
 def world2map(pose, gridmap, map_res):
     origin = np.array(gridmap.shape)/2
-    new_pose = np.zeros(1,2)
-    new_pose[0] = np.round(pose[0]/map_res) + origin[0];
-    new_pose[1] = np.round(pose[1]/map_res) + origin[1];
+    new_pose = np.zeros_like(pose)
+    new_pose[:,0] = np.round(pose[:,0]/map_res) + origin[0];
+    new_pose[:,1] = np.round(pose[:,1]/map_res) + origin[1];
     return new_pose.astype(int)
 
 def v2t(pose):
@@ -53,6 +53,7 @@ def ranges2cells(r_ranges, w_pose, gridmap, map_res):
 
 def poses2cells(w_pose, gridmap, map_res):
     # covert to map frame
+    w_pose = np.array([w_pose])
     m_pose = world2map(w_pose, gridmap, map_res)
     return m_pose  
 
@@ -60,14 +61,19 @@ def bresenham(x0, y0, x1, y1):
     l = np.array(list(bh.bresenham(x0, y0, x1, y1)))
     return l
     
-# def prob2logodds(p):
-    # add code here
+def prob2logodds(p):
+    return np.log(p/(1-p))
     
-# def logodds2prob(l):
-    # add code here    
+def logodds2prob(l):
+    return 1 / (np.exp(-l) + 1)
     
-# def inv_sensor_model(cell, endpoint, prob_occ, prob_free):
-    # add code here
-
-# def grid_mapping_with_known_poses(ranges_raw, poses_raw, occ_gridmap, map_res, prob_occ, prob_free, prior):
-    # add code here
+def inv_sensor_model(cell, endpoint, prob_occ, prob_free):
+    return prob_occ if np.all(cell==endpoint) else prob_free
+    
+def grid_mapping_with_known_poses(ranges_raw, poses_raw, occ_gridmap, map_res, prob_occ, prob_free, prior):
+    for ranges,pose in zip(ranges_raw,poses_raw):
+        footpoint = poses2cells(pose,occ_gridmap,map_res)[0]
+        endpoints = ranges2cells(ranges,pose,occ_gridmap,map_res)
+        for i in range(endpoints.shape[0]):
+            for cell in bresenham(footpoint[0],footpoint[1],endpoints[0,i],endpoints[1,i]):
+                occ_gridmap[cell[0],cell[1]] += prob2logodds(inv_sensor_model(cell, endpoints[:,i].reshape(2), prob_occ, prob_free))
