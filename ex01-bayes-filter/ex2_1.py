@@ -22,11 +22,26 @@ def plot_belief(belief):
     ax.title.set_text("Histogram")
 
 
-# def motion_model(action, belief):
-    # add code here
+def motion_model(action, belief):
+    move_dir = 1 if action == "F" else -1
+    new_belief = np.zeros_like(belief)
+    for i in range(len(belief)):
+        belief_correct = belief[i - move_dir] if 0 <= i - move_dir < len(belief) else 0
+        belief_opposite = belief[i + move_dir] if 0 <= i + move_dir < len(belief) else 0
+        new_belief[i] = 0.7 *belief_correct + 0.2 *belief[i] + 0.1 * belief_opposite
     
-# def sensor_model(observation, belief, world):
-    # add code here
+    return new_belief
 
-# def recursive_bayes_filter(actions, observations, belief, world):
-    # add code here
+def sensor_model(observation, belief, world):
+    for i in range(len(belief)):
+        if(world[i] == 1):
+            belief[i] *= 0.7 if observation == 1 else 0.3
+        if(world[i] == 0):
+            belief[i] *= 0.9 if observation == 0 else 0.1
+    return belief/belief.sum()
+
+def recursive_bayes_filter(actions, observations, belief, world):
+    for step in range(len(actions)):
+        belief = motion_model(actions[step],belief)
+        belief = sensor_model(observations[step],belief,world)
+    return belief
